@@ -43,7 +43,7 @@ func monitor() {
 	if err != nil {
 		log.Println(err)
 	}
-	t := time.NewTicker(time.Duration(*flushInterval) * time.Second)
+	timer := time.NewTicker(time.Duration(*flushInterval) * time.Second)
 	for {
 		select {
 		case <-t.C:
@@ -52,8 +52,8 @@ func monitor() {
 			if s.Modifier == "ms" {
 				_, ok := timers[s.Bucket]
 				if !ok {
-					var t []int
-					timers[s.Bucket] = t
+					var timer []int
+					timers[s.Bucket] = timer
 				}
 				timers[s.Bucket] = append(timers[s.Bucket], s.Value)
 			} else {
@@ -73,26 +73,25 @@ func submit() {
 		numStats := 0
 		now := time.Now()
 		buffer := bytes.NewBufferString("")
-		for s, c := range counters {
-			value := int64(c) / ((*flushInterval * int64(time.Second)) / 1e3)
-			fmt.Fprintf(buffer, "stats.%s %d %d\n", s, value, now)
-			fmt.Fprintf(buffer, "stats_counts.%s %d %d\n", s, c, now)
-			counters[s] = 0
+		for bucket, counter := range counters {
+			value := int64(counter) / ((*flushInterval * int64(time.Second)) / 1e3)
+			fmt.Fprintf(buffer, "stats.%s %d %d\n", bucket, value, now)
+			fmt.Fprintf(buffer, "stats_counts.%s %d %d\n", bucket, counter, now)
+			counters[bucket] = 0
 			numStats++
 		}
-		for u, t := range timers {
-			if len(t) > 0 {
-				sort.Ints(t)
-				min := t[0]
-				max := t[len(t)-1]
+		for bucket, timer := range timers {
+			if len(timer) > 0 {
+				sort.Ints(timer)
+				min := timer[0]
+				max := timer[len(timer)-1]
 				mean := min
 				maxAtThreshold := max
-				count := len(t)
-				if len(t) > 1 {
-					var thresholdIndex int
-					thresholdIndex = ((100 - *percentThreshold) / 100) * count
+				count := len(timer)
+				if len(timer) > 1 {
+					var thresholdIndex = ((100 - *percentThreshold) / 100) * count
 					numInThreshold := count - thresholdIndex
-					values := t[0:numInThreshold]
+					values := timer[0:numInThreshold]
 
 					sum := 0
 					for i := 0; i < numInThreshold; i++ {
@@ -101,14 +100,13 @@ func submit() {
 					mean = sum / numInThreshold
 				}
 				var z []int
-				timers[u] = z
+				timers[bucket] = z
 
-				fmt.Fprintf(buffer, "stats.timers.%s.mean %d %d\n", u, mean, now)
-				fmt.Fprintf(buffer, "stats.timers.%s.upper %d %d\n", u, max, now)
-				fmt.Fprintf(buffer, "stats.timers.%s.upper_%d %d %d\n", u,
-					*percentThreshold, maxAtThreshold, now)
-				fmt.Fprintf(buffer, "stats.timers.%s.lower %d %d\n", u, min, now)
-				fmt.Fprintf(buffer, "stats.timers.%s.count %d %d\n", u, count, now)
+				fmt.Fprintf(buffer, "stats.timers.%s.mean %d %d\n", bucket, mean, now)
+				fmt.Fprintf(buffer, "stats.timers.%s.upper %d %d\n", bucket, max, now)
+				fmt.Fprintf(buffer, "stats.timers.%s.upper_%d %d %d\n", bucket, *percentThreshold, maxAtThreshold, now)
+				fmt.Fprintf(buffer, "stats.timers.%s.lower %d %d\n", bucket, min, now)
+				fmt.Fprintf(buffer, "stats.timers.%s.count %d %d\n", bucket, count, now)
 			}
 			numStats++
 		}
