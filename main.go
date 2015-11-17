@@ -74,7 +74,7 @@ func submit() {
 	client, err := net.Dial(TCP, *graphiteAddress)
 	if client != nil {
 		numStats := 0
-		now := time.Now()
+		now := time.Now().UTC().Unix()
 		buffer := bytes.NewBufferString("")
 		for bucket, counter := range counters {
 			value := int64(counter) / ((*flushInterval * int64(time.Second)) / 1e3)
