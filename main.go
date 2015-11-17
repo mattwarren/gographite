@@ -174,6 +174,10 @@ func udpListener() {
 
 func main() {
 	flag.Parse()
+	log.Printf("serviceAddress: \"%s\"", *serviceAddress)
+	log.Printf("graphiteAddress: \"%s\"", *graphiteAddress)
+	log.Printf("flushInterval: %d", *flushInterval)
+	log.Printf("percentThreshold: %d", *percentThreshold)
 	go udpListener()
 	monitor()
 }
