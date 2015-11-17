@@ -115,8 +115,12 @@ func submit() {
 			numStats++
 		}
 		fmt.Fprintf(buffer, "statsd.numStats %d %d\n", numStats, now)
-		client.Write(buffer.Bytes())
+		written, error := client.Write(buffer.Bytes())
+		if error != nil {
+			log.Printf(error.Error())
+		}
 		client.Close()
+		log.Printf("Graphite Message:\n%s\n", string(buffer.Bytes()))
 	} else {
 		log.Printf(err.Error())
 	}
@@ -135,7 +139,7 @@ func handleMessage(buf []byte) {
 	var packet Packet
 	var sanitizeRegexp = regexp.MustCompile("[^a-zA-Z0-9\\-_\\.:\\|@]")
 	var packetRegexp = regexp.MustCompile("([a-zA-Z0-9_]+):([0-9]+)\\|(c|ms)(\\|@([0-9\\.]+))?")
-	s := sanitizeRegexp.ReplaceAllString(buf.String(), "")
+	s := sanitizeRegexp.ReplaceAllString(string(buf), "")
 	for _, item := range packetRegexp.FindAllStringSubmatch(s, -1) {
 		value, err := strconv.Atoi(item[2])
 		if err != nil {
@@ -168,15 +172,17 @@ func udpListener() {
 	for {
 		// "make" allocate an array and returns a slice that refers to that array
 		message := make([]byte, 512)
-		n, remaddr, error := listener.ReadFrom(message)
+		n, _, error := listener.ReadFromUDP(message)
 		if error != nil {
 			continue
 		}
-		buf := bytes.NewBuffer(message[0:n])
-		go handleMessage(listener, remaddr, buf)
+		// create a "slice" that refers to the valid portion of message
+		buf := message[0:n]
+		log.Printf("Stat %d: \"%s\"", statCounter, buf)
 
 		// Process the message asynchronously by firing off a go-routine
 		// If successful they are posted to the "In" channel and picked up by the "monitor()" method
+		go handleMessage(buf)
 	}
 	listener.Close()
 }
