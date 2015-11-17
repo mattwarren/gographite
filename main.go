@@ -169,6 +169,7 @@ func udpListener() {
 	if err != nil {
 		log.Fatalf("ListenAndServe: %s", err.Error())
 	}
+	var statCounter = 0
 	for {
 		// "make" allocate an array and returns a slice that refers to that array
 		message := make([]byte, 512)
@@ -183,6 +184,7 @@ func udpListener() {
 		// Process the message asynchronously by firing off a go-routine
 		// If successful they are posted to the "In" channel and picked up by the "monitor()" method
 		go handleMessage(buf)
+		statCounter++
 	}
 	listener.Close()
 }
