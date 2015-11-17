@@ -24,16 +24,18 @@ type Packet struct {
 	Sampling float32
 }
 
+// This is just shorthand for defining multiple variables in one go, see https://www.golang-book.com/books/intro/4#section4
 var (
-	serviceAddress  = flag.String("address", ":8125", "UDP service address")
-	graphiteAddress = flag.String("graphie", "localhost:2003",
-				"Graphite service address")
+	// flag.String(..) The return value is the address of a string variable that stores the value of the flag.
+	serviceAddress   = flag.String("address", ":8125", "UDP service address")
+	graphiteAddress  = flag.String("graphite", "localhost:2003", "Graphite service address")
 	flushInterval    = flag.Int64("flush-interval", 10, "Flush interval")
 	percentThreshold = flag.Int("percent-threshold", 90, "Threshold percent")
 )
 
 var (
-	In       = make(chan Packet, 10000)
+	// Sends to a buffered channel, will block only when the buffer is full. Receives block when the buffer is empty.
+	In       = make(chan Packet, 10000) // buffered channel with length 10,000
 	counters = make(map[string]int)
 	timers   = make(map[string][]int)
 )
@@ -46,9 +48,10 @@ func monitor() {
 	timer := time.NewTicker(time.Duration(*flushInterval) * time.Second)
 	for {
 		select {
-		case <-t.C:
+		case <-timer.C: // when we get a "Tick" on the Timer channel
+			//log.Println("Timer fired")
 			submit()
-		case s := <-In:
+		case s := <-In: // when we get a packet in the In channel
 			if s.Modifier == "ms" {
 				_, ok := timers[s.Bucket]
 				if !ok {
@@ -99,6 +102,7 @@ func submit() {
 					}
 					mean = sum / numInThreshold
 				}
+				// This is clearing out the item we've just read, by setting it to a new empty array
 				var z []int
 				timers[bucket] = z
 
@@ -153,6 +157,7 @@ func udpListener() {
 		log.Fatalf("ListenAndServe: %s", err.Error())
 	}
 	for {
+		// "make" allocate an array and returns a slice that refers to that array
 		message := make([]byte, 512)
 		n, remaddr, error := listener.ReadFrom(message)
 		if error != nil {
@@ -160,6 +165,9 @@ func udpListener() {
 		}
 		buf := bytes.NewBuffer(message[0:n])
 		go handleMessage(listener, remaddr, buf)
+
+		// Process the message asynchronously by firing off a go-routine
+		// If successful they are posted to the "In" channel and picked up by the "monitor()" method
 	}
 	listener.Close()
 }
