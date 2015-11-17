@@ -122,7 +122,16 @@ func submit() {
 	}
 }
 
-func handleMessage(conn *net.UDPConn, remaddr net.Addr, buf *bytes.Buffer) {
+// Statsd spec https://github.com/b/statsd_spec and https://github.com/etsy/statsd/blob/master/docs/metric_types.md
+// The format of exported metrics is UTF-8 text, with metrics separated by newlines.
+//
+// Gauges -     <metric name>:<value>|g
+// Counters -   <metric name>:<value>|c[|@<sample rate>]
+// Timers -     <metric name>:<value>|ms
+// Histograms - <metric name>:<value>|h
+// Meters -     <metric name>:<value>|m
+
+func handleMessage(buf []byte) {
 	var packet Packet
 	var sanitizeRegexp = regexp.MustCompile("[^a-zA-Z0-9\\-_\\.:\\|@]")
 	var packetRegexp = regexp.MustCompile("([a-zA-Z0-9_]+):([0-9]+)\\|(c|ms)(\\|@([0-9\\.]+))?")
